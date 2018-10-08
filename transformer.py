@@ -38,3 +38,21 @@ class EncoderDecoder(nn.Module):
 
     def decode(self, memory, src_mask, tgt, tgt_mask):
         return self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask)
+    
+    
+class Generator(nn.Module):
+    "Define standard linear + softmax generation step."
+    def __init__(self, d_model, vocab):
+        super(Generator, self).__init__()
+        self.proj = nn.Linear(d_model, vocab)
+
+    def forward(self, x):
+        return F.log_softmax(self.proj(x), dim=-1)
+
+
+def clones(module, N):
+    """
+    Produce N identical layers.
+    The encoder and decoder are each composed of 6 identical layers
+    """
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
