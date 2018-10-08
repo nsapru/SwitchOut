@@ -44,7 +44,9 @@ git push origin $branch_name
 - The environment can be for local use, or for use in a cloud environment
 - If using for a cloud environment, commands could include CLI tools from a cloud provider (i.e. gsutil from Google Cloud Platform)
 ```
-# Example
+- conda create -n switchout python=3.6 anaconda
+- pip install http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl
+- pip install numpy matplotlib spacy torchtext seaborn
 
 # Step 1
 # Step 2
