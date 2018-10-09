@@ -39,15 +39,54 @@ TGT = data.Field(tokenize=tokenize_en, init_token = BOS_WORD,
                  eos_token = EOS_WORD, pad_token=BLANK_WORD)
 
 # Using a low max_len to minimize size of the dataset
-MAX_LEN = 100
+MAX_LEN = 20
 
 train, val, test = datasets.IWSLT.splits(
     exts=('.de', '.en'), fields=(SRC, TGT), 
     filter_pred=lambda x: len(vars(x)['src']) <= MAX_LEN and 
         len(vars(x)['trg']) <= MAX_LEN)
-MIN_FREQ = 2
+MIN_FREQ = 20
 SRC.build_vocab(train.src, min_freq=MIN_FREQ)
 TGT.build_vocab(train.trg, min_freq=MIN_FREQ)
+
+
+
+##########################################################################
+#########################   DATASET SUMMARY   ############################
+##########################################################################
+
+
+# Adapted From: https://bastings.github.io/annotated_encoder_decoder/
+
+def print_data_info(train_data, valid_data, test_data, src_field, trg_field):
+    """ This prints some useful stuff about our data sets. """
+
+    print("Data set sizes (number of sentence pairs):")
+    print('train', len(train_data))
+    print('valid', len(valid_data))
+    print('test', len(test_data), "\n")
+
+    print("First training example:")
+    print("src:", " ".join(vars(train_data[0])['src']))
+    print("trg:", " ".join(vars(train_data[0])['trg']), "\n")
+
+    print("Most common words (src):")
+    print("\n".join(["%10s %10d" % x for x in src_field.vocab.freqs.most_common(10)]), "\n")
+    print("Most common words (trg):")
+    print("\n".join(["%10s %10d" % x for x in trg_field.vocab.freqs.most_common(10)]), "\n")
+
+    print("First 10 words (src):")
+    print("\n".join(
+        '%02d %s' % (i, t) for i, t in enumerate(src_field.vocab.itos[:10])), "\n")
+    print("First 10 words (trg):")
+    print("\n".join(
+        '%02d %s' % (i, t) for i, t in enumerate(trg_field.vocab.itos[:10])), "\n")
+
+    print("Number of German words (types):", len(src_field.vocab))
+    print("Number of English words (types):", len(trg_field.vocab), "\n")
+
+
+print_data_info(train, val, test, SRC, TGT)
 
 
 
