@@ -1,4 +1,7 @@
-# Source: https://github.com/harvardnlp/annotated-transformer/blob/master/The%20Annotated%20Transformer.ipynb
+#########################################################################
+###########################   ADAPTED FROM   ############################
+#######   http://nlp.seas.harvard.edu/2018/04/03/attention.html   #######
+#########################################################################
 
 import numpy as np
 import torch
