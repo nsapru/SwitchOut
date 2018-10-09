@@ -17,6 +17,86 @@ import transformer
 
 
 
+augmentation = False
+
+
+seed = 1234
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+
+
+
+##########################################################################
+###########################   SwitchOut   ################################
+######   Adapted from A.6 in https://arxiv.org/pdf/1808.07512.pdf   ######
+##########################################################################
+
+def switch_out(sents, tau, vocab_size,bos_id,eos_id,pad_id):
+	"""
+	Sample a batch of corrupted examples from sents.
+
+	Args:
+	sents: Tensor [batch_size, n_steps]. The input sentences.
+	tau: Temperature.
+	vocab_size: to create valid samples.
+	Returns:
+	sampled_sents: Tensor [batch_size, n_steps]. The corrupted sentences.
+
+	"""
+	mask = torch.eq(sents, bos_id) | torch.eq(sents, eos_id) | torch.eq(sents, pad_id)
+	mask = mask.data.type('torch.ByteTensor') #converting to byte tensor for masked_fill in built function
+	lengths = mask.float().sum(dim=1)
+	batch_size, n_steps = sents.size()
+
+	# first, sample the number of words to corrupt for each sentence
+	logits = torch.arange(n_steps)
+	logits = logits.mul_(-1).unsqueeze(0).expand_as(sents).contiguous().masked_fill_(mask, -float("inf"))
+	logits = Variable(logits)
+	probs = torch.nn.functional.softmax(logits.mul_(tau), dim=1)
+
+	# finding corrupt sampels (most likely empty or 1 word) leading to zero prob
+	for idx,prob in enumerate(probs.data):
+		if torch.sum(prob)<= 0 and idx!=0:
+			valid_ind = list(set(range(len(probs.data))))- list(set([idx]))
+			for i in range(100):
+				new_indx = random.choice(valid_list)
+				if not torch.sum(probs.data[new_indx])<= 0:
+					probs[idx] = probs[new_indx]
+					break
+				else:
+					pass
+
+	# still num_words probs fails likely due to corrupt input, therefore returning the whole original batch
+	try:
+		num_words = torch.distributions.Categorical(probs).sample()
+	except:
+		print ('Returning orignial batch!!!!!!')
+		return sents
+
+	corrupt_pos = num_words.data.float().div_(lengths).unsqueeze(1).expand_as(sents).contiguous().masked_fill_(mask, 0)
+
+	corrupt_pos = torch.bernoulli(corrupt_pos, out=corrupt_pos).byte()
+	total_words = int(corrupt_pos.sum())
+
+	# sample the corrupted values, which will be added to sents
+	corrupt_val = torch.LongTensor(total_words)
+	corrupt_val = corrupt_val.random_(1, vocab_size)
+	corrupts = torch.zeros(batch_size, n_steps).long()
+	corrupts = corrupts.masked_scatter_(corrupt_pos, corrupt_val)
+	corrupts = corrupts.cuda()
+	sampled_sents = sents.add(Variable(corrupts)).remainder_(vocab_size)
+
+	# converting sampled_sents into Variable before returning
+	try:
+		sampled_sents = Variable(sampled_sents)
+	except:
+		pass
+
+	return sampled_sents
+
+
+
 ##########################################################################
 #########################   DATA LOADING   ###############################
 ##########################################################################
@@ -43,13 +123,13 @@ TGT = data.Field(tokenize=tokenize_en, init_token = BOS_WORD,
                  eos_token = EOS_WORD, pad_token=BLANK_WORD)
 
 # Using a low max_len to minimize size of the dataset
-MAX_LEN = 20
+MAX_LEN = 100
 
 train, val, test = datasets.IWSLT.splits(
     exts=('.de', '.en'), fields=(SRC, TGT), 
     filter_pred=lambda x: len(vars(x)['src']) <= MAX_LEN and 
         len(vars(x)['trg']) <= MAX_LEN)
-MIN_FREQ = 20
+MIN_FREQ = 2
 SRC.build_vocab(train.src, min_freq=MIN_FREQ)
 TGT.build_vocab(train.trg, min_freq=MIN_FREQ)
 
@@ -180,8 +260,32 @@ def run_epoch(data_iter, model, loss_compute):
     total_loss = 0
     tokens = 0
     for i, batch in enumerate(data_iter):
-        out = model.forward(batch.src, batch.trg, 
+
+        if (augmentation== False):
+            print('Not Using SwitchOut....')
+            out = model.forward(batch.src, batch.trg,
                             batch.src_mask, batch.trg_mask)
+
+        elif (augmentation == True):
+            print('Using SwitchOut....')
+
+            tgt_pad_idx = TGT.vocab.stoi["<blank>"]
+            tgt_eos_id = TGT.vocab.stoi['</s>']
+            tgt_bos_id = TGT.vocab.stoi["<s>"]
+            src_pad_idx = SRC.vocab.stoi["<blank>"]
+            src_eos_id = SRC.vocab.stoi['</s>']
+            src_bos_id = SRC.vocab.stoi["<s>"]
+
+            bacth_switch_src = switch_out(batch.src,0.3,len(SRC.vocab),
+                                          src_bos_id,src_eos_id,src_pad_idx)
+            batch_switch_trg = switch_out(batch.trg,0.3,len(TGT.vocab),
+                                          tgt_bos_id,tgt_eos_id,tgt_pad_idx)
+
+            out = model.forward(bacth_switch_src, batch_switch_trg,
+                                          batch.src_mask, batch.trg_mask)
+
+
+
         loss = loss_compute(out, batch.trg_y, batch.ntokens)
         total_loss += loss
         total_tokens += batch.ntokens
@@ -192,8 +296,8 @@ def run_epoch(data_iter, model, loss_compute):
                     (i, loss / batch.ntokens, tokens / elapsed))
             start = time.time()
             tokens = 0
-    return total_loss / total_tokens
 
+        return total_loss / total_tokens
 
 
 ##########################################################################
@@ -261,57 +365,6 @@ class MultiGPULossCompute:
         return total * normalize
 
 
-
-
-##########################################################################
-#######################   PRINT VALIDATION EXAMPLES   ####################
-##########################################################################    
-
-
-def print_examples(example_iter, model, n=2, max_len=100, 
-                   sos_index=1, 
-                   src_eos_index=None, 
-                   trg_eos_index=None, 
-                   src_vocab=None, trg_vocab=None):
-    """Prints N examples. Assumes batch size of 1."""
-
-    model.eval()
-    count = 0
-    print()
-    
-    if src_vocab is not None and trg_vocab is not None:
-        src_eos_index = src_vocab.stoi[EOS_TOKEN]
-        trg_sos_index = trg_vocab.stoi[SOS_TOKEN]
-        trg_eos_index = trg_vocab.stoi[EOS_TOKEN]
-    else:
-        src_eos_index = None
-        trg_sos_index = 1
-        trg_eos_index = None
-        
-    for i, batch in enumerate(example_iter):
-      
-        src = batch.src.cpu().numpy()[0, :]
-        trg = batch.trg_y.cpu().numpy()[0, :]
-
-        # remove </s> (if it is there)
-        src = src[:-1] if src[-1] == src_eos_index else src
-        trg = trg[:-1] if trg[-1] == trg_eos_index else trg      
-      
-        result, _ = greedy_decode(
-          model, batch.src, batch.src_mask, batch.src_lengths,
-          max_len=max_len, sos_index=trg_sos_index, eos_index=trg_eos_index)
-        print("Example #%d" % (i+1))
-        print("Src : ", " ".join(lookup_words(src, vocab=src_vocab)))
-        print("Trg : ", " ".join(lookup_words(trg, vocab=trg_vocab)))
-        print("Pred: ", " ".join(lookup_words(result, vocab=trg_vocab)))
-        print()
-        
-        count += 1
-        if count == n:
-            break
-
-
-
 ##########################################################################
 ###  model, criterion, optimizer, data iterators, and paralelization   ###
 ##########################################################################
@@ -338,7 +391,7 @@ model_par = nn.DataParallel(model, device_ids=devices)
 
 model_opt = transformer.NoamOpt(model.src_embed[0].d_model, 1, 2000,
         torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-for epoch in range(3):
+for epoch in range(20):
     model_par.train()
     run_epoch((rebatch(pad_idx, b) for b in train_iter), 
               model_par, 
@@ -350,11 +403,7 @@ for epoch in range(3):
                       MultiGPULossCompute(model.generator, criterion, 
                       devices=devices, opt=None))
     print('Val_loss: ',loss)
-    
-    print_examples((rebatch(PAD_INDEX, x) for x in valid_iter), 
-                           model, n=3, src_vocab=SRC.vocab, trg_vocab=TRG.vocab)
 
-    
     
     
 ##########################################################################
