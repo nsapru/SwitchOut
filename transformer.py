@@ -1,4 +1,7 @@
-# Source: https://github.com/harvardnlp/annotated-transformer/blob/master/The%20Annotated%20Transformer.ipynb
+#########################################################################
+###########################   ADAPTED FROM   ############################
+#######   http://nlp.seas.harvard.edu/2018/04/03/attention.html   #######
+#########################################################################
 
 import numpy as np
 import torch
@@ -9,6 +12,7 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import seaborn
 seaborn.set_context(context="talk")
+
 
 
 ##########################################################################
@@ -56,6 +60,8 @@ def clones(module, N):
     The encoder and decoder are each composed of 6 identical layers
     """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
+
 
 ##########################################################################
 ###########################   ENCODER   ##################################
@@ -119,6 +125,7 @@ class EncoderLayer(nn.Module):
         return self.sublayer[1](x, self.feed_forward)
 
 
+
 ##########################################################################
 ###########################   DECODER   ##################################
 ##########################################################################
@@ -159,6 +166,7 @@ def subsequent_mask(size):
     attn_shape = (1, size, size)
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
     return torch.from_numpy(subsequent_mask) == 0
+
 
 
 ##########################################################################
@@ -210,6 +218,7 @@ class MultiHeadedAttention(nn.Module):
         x = x.transpose(1, 2).contiguous() \
              .view(nbatches, -1, self.h * self.d_k)
         return self.linears[-1](x)
+
 
 
 ##########################################################################
@@ -269,32 +278,6 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-##########################################################################
-######################   Building the Model   ############################
-##########################################################################
-
-def make_model(src_vocab, tgt_vocab, N=6,
-               d_model=512, d_ff=2048, h=8, dropout=0.1):
-    "Helper: Construct a model from hyperparameters."
-    c = copy.deepcopy
-    attn = MultiHeadedAttention(h, d_model)
-    ff = PositionwiseFeedForward(d_model, d_ff, dropout)
-    position = PositionalEncoding(d_model, dropout)
-    model = EncoderDecoder(
-        Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
-        Decoder(DecoderLayer(d_model, c(attn), c(attn),
-                             c(ff), dropout), N),
-        nn.Sequential(Embeddings(d_model, src_vocab), c(position)),
-        nn.Sequential(Embeddings(d_model, tgt_vocab), c(position)),
-        Generator(d_model, tgt_vocab))
-
-    # This was important from their code.
-    # Initialize parameters with Glorot / fan_avg.
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform(p)
-    return model
-
 
 ##########################################################################
 ############################   Optimizer   ###############################
@@ -333,9 +316,11 @@ def get_std_opt(model):
             torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
 
+
 ##########################################################################
 #################   Regularizer - Label Smoothing   ######################
 ##########################################################################
+
 
 class LabelSmoothing(nn.Module):
     "Implement label smoothing."
@@ -361,6 +346,12 @@ class LabelSmoothing(nn.Module):
         return self.criterion(x, Variable(true_dist, requires_grad=False))
 
 
+    
+##########################################################################
+#########################   Greedy Decoder   #############################
+##########################################################################
+
+
 def greedy_decode(model, src, src_mask, max_len, start_symbol):
     memory = model.encode(src, src_mask)
     ys = torch.ones(1, 1).fill_(start_symbol).type_as(src.data)
@@ -376,8 +367,30 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
                         torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=1)
     return ys
 
-#model.eval()
-#src = Variable(torch.LongTensor([[1,2,3,4,5,6,7,8,9,10]]) )
-#src_mask = Variable(torch.ones(1, 1, 10) )
-#print(greedy_decode(model, src, src_mask, max_len=10, start_symbol=1))
 
+
+##########################################################################
+######################   Building the Model   ############################
+##########################################################################
+
+def make_model(src_vocab, tgt_vocab, N=6,
+               d_model=512, d_ff=2048, h=8, dropout=0.1):
+    "Helper: Construct a model from hyperparameters."
+    c = copy.deepcopy
+    attn = MultiHeadedAttention(h, d_model)
+    ff = PositionwiseFeedForward(d_model, d_ff, dropout)
+    position = PositionalEncoding(d_model, dropout)
+    model = EncoderDecoder(
+        Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
+        Decoder(DecoderLayer(d_model, c(attn), c(attn),
+                             c(ff), dropout), N),
+        nn.Sequential(Embeddings(d_model, src_vocab), c(position)),
+        nn.Sequential(Embeddings(d_model, tgt_vocab), c(position)),
+        Generator(d_model, tgt_vocab))
+
+    # This was important from their code.
+    # Initialize parameters with Glorot / fan_avg.
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform(p)
+    return model

@@ -1,106 +1,50 @@
-# Insight_Project_Framework
-Framework for machine learning projects at Insight Data Science. 
+# SwitchOut for Neural Machine Translation (InsightAI Project)
 
-## Motivation for this project format:
-- **src** : Put all source code for production within structured directory
-- **tests** : Put all source code for testing in an easy to find location
-- **configs** : Enable modification of all preset variables within single directory (consisting of one or many config files for separate tasks)
-- **data** : Include example a small amount of data in the Github repository so tests can be run to validate installation
-- **build** : Include scripts that automate building of a standalone environment
-- **static** : Any images or content to include in the README or web framework if part of the pipeline
+This project was created as part of the Insight AI Fellowship. I would like to thank my technical advisors Emmanuel Ameisen, Matt Rubashkin and Ming Zhao for their help in scoping the project, getting started with AWS and figuring out the technical choices to complete the first iteration in time. It was also great to have access multi-GPU AWS instances from Insight that helped speed up the development/testing process.
 
-## Setup
-Clone repository and update python path
-```
-repo_name=Insight_Project_Framework # URL of your new repository
-username=mrubash1 # Username for your personal github account
-git clone https://github.com/$username/$repo_name
-cd $repo_name
-echo "export $repo_name=${PWD}" >> ~/.bash_profile
-echo "export PYTHONPATH=$repo_name/src:${PYTHONPATH}" >> ~/.bash_profile
-source ~/.bash_profile
-```
-Create new development branch and switch onto it
-```
-branch_name=dev-readme_requisites-20180905 # Name of development branch, of the form 'dev-feature_name-date_of_creation'}}
-git checkout -b $branch_name
-git push origin $branch_name
-```
+I would also like to thank one of the authors, Hieu Pham, for answering some of my early questions about their implementation.
 
-## Requisites
-- List all packages and software needed to build the environment
-- This could include cloud command line tools (i.e. gsutil), package managers (i.e. conda), etc.
-```
-# Example
-- A
-- B
-- C
-```
+This repository contains an implementation of [Switchout](https://arxiv.org/abs/1808.07512) applied to train the Transfomer model described in [Attention is All You Need](https://arxiv.org/abs/1706.03762).
 
-## Build Environment
-- Include instructions of how to launch scripts in the build subfolder
-- Build scripts can include shell scripts or python setup.py files
-- The purpose of these scripts is to build a standalone environment, for running the code in this repository
-- The environment can be for local use, or for use in a cloud environment
-- If using for a cloud environment, commands could include CLI tools from a cloud provider (i.e. gsutil from Google Cloud Platform)
-```
-# Example
-
-# Step 1
-# Step 2
-```
-
-## Configs
-- We recommond using either .yaml or .txt for your config files, not .json
-- **DO NOT STORE CREDENTIALS IN THE CONFIG DIRECTORY!!**
-- If credentials are needed, use environment variables or HashiCorp's [Vault](https://www.vaultproject.io/)
+The transformer model used here is adapted from [ The Annotated Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html). We follow the set up described here to run the code on a [p3.8xlarge AWS instance](https://aws.amazon.com/ec2/instance-types/p3/)
 
 
-## Test
-- Include instructions for how to run all tests after the software is installed
-```
-# Example
+## Motivation:
+The authors demonstrate performance gains on three machine translation datasets using SwitchOut.
+SwitchOut can also be adapted to other tasks, such as sentiment analysis, by modifying the existing implementation to only augment text and leave the labels unchanged.
 
-# Step 1
-# Step 2
+
+## Requisites and Instructions to get started
+Clone the repository
+```
+https://github.com/nsapru/SwitchOut.git
+```
+
+Create virutal environment
+```
+conda create -n switchout_venv python=3.6 anaconda
+source activate switchout_venv
+pip install http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl
+pip install numpy matplotlib spacy torchtext
+```
+It's recommended that you use the version of pytorch listed above.
+The code will run significantly slower on AWS p3.8xlarge instances if you use the same version of pytorch (0.3.0.post4) compiled with earlier version of CUDA. Newer version of pytorch might require some code modifications in the training (train.py) as well as the model (transformer.py) file.
+
+
+## Data
+The dataset used to train and test the model is the German(de) to English(en) [IWSLT dataset] (https://torchtext.readthedocs.io/en/latest/datasets.html#iwslt) available with torchtext. This is also one of the datasets used by the authors to test SwitchOut. When you start training from the first time, the dataset will be downnloaded and pre-processed in the .data folder and will be available for training in subsequent sessions.
+
+## Training and Inference
+To train and test, simply run:
+```
+python train.py
 ```
 
 ## Run Inference
-- Include instructions on how to run inference
-- i.e. image classification on a single image for a CNN deep learning project
-```
-# Example
+At this time, training and inference occurs in the same (train.py) file.
+I am planning create a separate file, translate.py, to run inference from the command line using pre-trained copies of my model.
 
-# Step 1
-# Step 2
-```
 
-## Build Model
-- Include instructions of how to build the model
-- This can be done either locally or on the cloud
-```
-# Example
-
-# Step 1
-# Step 2
-```
-
-## Serve Model
-- Include instructions of how to set up a REST or RPC endpoint 
-- This is for running remote inference via a custom model
-```
-# Example
-
-# Step 1
-# Step 2
-```
-
-## Analysis
-- Include some form of EDA (exploratory data analysis)
-- And/or include benchmarking of the model and results
-```
-# Example
-
-# Step 1
-# Step 2
-```
+## Next Steps
+The repository in its current form demonstartes SwitchOut implemented for the Transformer.
+Time permitting, it'll be interesting to try matching all the training conditions in the original paper and see if this model can match the published results.
