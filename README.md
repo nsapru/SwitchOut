@@ -1,13 +1,11 @@
-# Insight_Project_Framework
-Framework for machine learning projects at Insight Data Science. 
+# SwitchOut for Neural Machine Translation
+This repository contains an implementation of [Switchout](https://arxiv.org/abs/1808.07512) applied to train the Transfomer model described in [Attention is All You Need](https://arxiv.org/abs/1706.03762).
 
-## Motivation for this project format:
-- **src** : Put all source code for production within structured directory
-- **tests** : Put all source code for testing in an easy to find location
-- **configs** : Enable modification of all preset variables within single directory (consisting of one or many config files for separate tasks)
-- **data** : Include example a small amount of data in the Github repository so tests can be run to validate installation
-- **build** : Include scripts that automate building of a standalone environment
-- **static** : Any images or content to include in the README or web framework if part of the pipeline
+The transformer model used here is adapted from [ The Annotated Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html). We follow the set up described here to run the code on a [p3.8xlarge AWS instance](https://aws.amazon.com/ec2/instance-types/p3/)
+
+## Motivation:
+The authors demonstrate performance gains on machine translation tasks using SwitchOut.
+SwitchOut can also be adapted to other tasks, such as sentiment analysis, by modifying the existing implementation to only augment text and leave the labels unchanged.
 
 ## Setup
 Clone repository and update python path
