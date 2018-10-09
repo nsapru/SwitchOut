@@ -1,6 +1,8 @@
 # SwitchOut for Neural Machine Translation (InsightAI Project)
 
-This project was created as part of the Insight AI Fellowship. I would like to thank my technical advisors Emmanuel Ameisen, Matt Rubashkin and Ming Zhao for their help in scoping the project and getting over the hurdles.
+This project was created as part of the Insight AI Fellowship. I would like to thank my technical advisors Emmanuel Ameisen, Matt Rubashkin and Ming Zhao for their help in scoping the project, getting started with AWS and figuring out the technical choices to complete the first iteration in time. It was also great to have access multi-GPU AWS instances from Insight that helped speed up the development/testing process.
+
+I would also like to thank one of the authors, Hieu Pham, for answering some of my early questions about their implementation.
 
 This repository contains an implementation of [Switchout](https://arxiv.org/abs/1808.07512) applied to train the Transfomer model described in [Attention is All You Need](https://arxiv.org/abs/1706.03762).
 
@@ -39,5 +41,10 @@ python train.py
 ```
 
 ## Run Inference
-At this time, training in inference occurs in the same (train.py) file.
+At this time, training and inference occurs in the same (train.py) file.
 I am planning create a separate file, translate.py, to run inference from the command line using pre-trained copies of my model.
+
+
+## Next Steps
+The repository in its current form demonstartes SwitchOut implemented for the Transformer.
+Time permitting, it'll be interesting to try matching all the training conditions in the original paper and see if this model can match the published results.
