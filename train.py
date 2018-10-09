@@ -39,13 +39,13 @@ TGT = data.Field(tokenize=tokenize_en, init_token = BOS_WORD,
                  eos_token = EOS_WORD, pad_token=BLANK_WORD)
 
 # Using a low max_len to minimize size of the dataset
-MAX_LEN = 20
+MAX_LEN = 100
 
 train, val, test = datasets.IWSLT.splits(
     exts=('.de', '.en'), fields=(SRC, TGT), 
     filter_pred=lambda x: len(vars(x)['src']) <= MAX_LEN and 
         len(vars(x)['trg']) <= MAX_LEN)
-MIN_FREQ = 10000
+MIN_FREQ = 2
 SRC.build_vocab(train.src, min_freq=MIN_FREQ)
 TGT.build_vocab(train.trg, min_freq=MIN_FREQ)
 
@@ -246,9 +246,9 @@ valid_iter = MyIterator(val, batch_size=BATCH_SIZE, device=0,
                         batch_size_fn=batch_size_fn, train=False)
 model_par = nn.DataParallel(model, device_ids=devices)
 
-model_opt = NoamOpt(model.src_embed[0].d_model, 1, 2000,
+model_opt = transformer.NoamOpt(model.src_embed[0].d_model, 1, 2000,
         torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-for epoch in range(10):
+for epoch in range(3):
     model_par.train()
     run_epoch((rebatch(pad_idx, b) for b in train_iter), 
               model_par, 
