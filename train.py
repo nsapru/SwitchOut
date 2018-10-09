@@ -1,4 +1,8 @@
-#Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
+#########################################################################
+###########################   ADAPTED FROM   ############################
+#######   http://nlp.seas.harvard.edu/2018/04/03/attention.html   #######
+########  https://bastings.github.io/annotated_encoder_decoder/   #######
+#########################################################################
 
 import torch
 import torch.nn as nn
@@ -55,8 +59,6 @@ TGT.build_vocab(train.trg, min_freq=MIN_FREQ)
 #########################   DATASET SUMMARY   ############################
 ##########################################################################
 
-
-# Adapted From: https://bastings.github.io/annotated_encoder_decoder/
 
 def print_data_info(train_data, valid_data, test_data, src_field, trg_field):
     """ This prints some useful stuff about our data sets. """
@@ -258,8 +260,57 @@ class MultiGPULossCompute:
             self.opt.optimizer.zero_grad()
         return total * normalize
 
+
+
+
+##########################################################################
+#######################   PRINT VALIDATION EXAMPLES   ####################
+##########################################################################    
+
+
+def print_examples(example_iter, model, n=2, max_len=100, 
+                   sos_index=1, 
+                   src_eos_index=None, 
+                   trg_eos_index=None, 
+                   src_vocab=None, trg_vocab=None):
+    """Prints N examples. Assumes batch size of 1."""
+
+    model.eval()
+    count = 0
+    print()
     
-    
+    if src_vocab is not None and trg_vocab is not None:
+        src_eos_index = src_vocab.stoi[EOS_TOKEN]
+        trg_sos_index = trg_vocab.stoi[SOS_TOKEN]
+        trg_eos_index = trg_vocab.stoi[EOS_TOKEN]
+    else:
+        src_eos_index = None
+        trg_sos_index = 1
+        trg_eos_index = None
+        
+    for i, batch in enumerate(example_iter):
+      
+        src = batch.src.cpu().numpy()[0, :]
+        trg = batch.trg_y.cpu().numpy()[0, :]
+
+        # remove </s> (if it is there)
+        src = src[:-1] if src[-1] == src_eos_index else src
+        trg = trg[:-1] if trg[-1] == trg_eos_index else trg      
+      
+        result, _ = greedy_decode(
+          model, batch.src, batch.src_mask, batch.src_lengths,
+          max_len=max_len, sos_index=trg_sos_index, eos_index=trg_eos_index)
+        print("Example #%d" % (i+1))
+        print("Src : ", " ".join(lookup_words(src, vocab=src_vocab)))
+        print("Trg : ", " ".join(lookup_words(trg, vocab=trg_vocab)))
+        print("Pred: ", " ".join(lookup_words(result, vocab=trg_vocab)))
+        print()
+        
+        count += 1
+        if count == n:
+            break
+
+
 
 ##########################################################################
 ###  model, criterion, optimizer, data iterators, and paralelization   ###
@@ -298,7 +349,10 @@ for epoch in range(3):
                       model_par, 
                       MultiGPULossCompute(model.generator, criterion, 
                       devices=devices, opt=None))
-    print(loss)
+    print('Val_loss: ',loss)
+    
+    print_examples((rebatch(PAD_INDEX, x) for x in valid_iter), 
+                           model, n=3, src_vocab=SRC.vocab, trg_vocab=TRG.vocab)
 
     
     
