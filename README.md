@@ -1,7 +1,7 @@
 # SwitchOut for Neural Machine Translation (InsightAI Project)
 
 ## Motivation:
-Lack of sufficient labeled training datat often causes neural networks to perform poorly. Data augmentation techniques, such as SwitchOut, can be used to boost model performance without incurring the time and cost to label more examples. SwitchOut is also interesting because it can potentially be adapted to other tasks, such as sentiment analysis, by modifying the existing implementation to only augment text and leave the labels unchanged.
+Lack of sufficient labeled training datat often leads to poor neural networks performance. Data augmentation techniques, such as SwitchOut, can be used to boost model performance without incurring the time and cost to label more examples. SwitchOut is also interesting because it can potentially be adapted to other tasks, such as sentiment analysis, by modifying the existing implementation to only augment text and leave the labels unchanged.
 
 This repository contains an implementation of [Switchout](https://arxiv.org/abs/1808.07512) applied to train the Transfomer model described in [Attention is All You Need](https://arxiv.org/abs/1706.03762). The transformer model used here is adapted from [The Annotated Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html). We follow the set up described there to run the code on a [p3.8xlarge AWS instance](https://aws.amazon.com/ec2/instance-types/p3/).
 
